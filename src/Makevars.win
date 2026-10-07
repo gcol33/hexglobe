@@ -1,0 +1,14 @@
+TARGET = x86_64-pc-windows-gnu
+LIBDIR = rust/target/$(TARGET)/release
+STATLIB = $(LIBDIR)/libhexglobe.a
+PKG_LIBS = -L$(LIBDIR) -lhexglobe -lws2_32 -lntdll -luserenv -ldbghelp -lbcrypt -lkernel32
+
+all: $(SHLIB)
+
+$(SHLIB): $(STATLIB)
+
+$(STATLIB):
+	PATH="$(USERPROFILE)/.cargo/bin:$$PATH" && rustc --version && cargo --version && \
+	MAKEFLAGS= cargo build -j 2 --release --locked --target $(TARGET) --manifest-path=rust/Cargo.toml --target-dir=rust/target
+
+.PHONY: all

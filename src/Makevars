@@ -1,0 +1,13 @@
+LIBDIR = rust/target/release
+STATLIB = $(LIBDIR)/libhexglobe.a
+PKG_LIBS = -L$(LIBDIR) -lhexglobe `uname -s | sed -e 's/Darwin/-framework Metal -framework QuartzCore -framework CoreGraphics -framework Foundation -lobjc/' -e 's/Linux/-ldl -lpthread -lm/'`
+
+all: $(SHLIB)
+
+$(SHLIB): $(STATLIB)
+
+$(STATLIB):
+	PATH="$(HOME)/.cargo/bin:$$PATH" && rustc --version && cargo --version && \
+	MAKEFLAGS= cargo build -j 2 --release --locked --manifest-path=rust/Cargo.toml --target-dir=rust/target
+
+.PHONY: all

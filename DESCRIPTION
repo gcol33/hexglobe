@@ -1,0 +1,19 @@
+Package: hexglobe
+Title: Render 'hexify' Globes on the Graphics Card Without a Browser
+Version: 0.1.0
+Authors@R:
+    person("Gilles", "Colling", , "gilles.colling051@gmail.com", role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0003-3070-6066"))
+Description: Draws the globes of the 'hexify' package offscreen on the
+    graphics card through 'wgpu', the 'Rust' implementation of 'WebGPU',
+    with the same shader and pipelines as the 'hexify' globe widget, and
+    returns the image as pixels or a PNG file. 'hexify' calls it from
+    hex_globe_png(); no browser is needed.
+License: MIT + file LICENSE
+Encoding: UTF-8
+SystemRequirements: Cargo (Rust's package manager), rustc
+Depends: R (>= 4.2)
+Suggests: testthat (>= 3.0.0), hexify
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.0

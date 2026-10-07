@@ -1,0 +1,8 @@
+src/rust/target/
+*.o
+*.so
+*.dll
+.Rhistory
+.RData
+hexglobe.Rcheck/
+hexglobe_*.tar.gz
