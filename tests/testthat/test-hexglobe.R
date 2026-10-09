@@ -36,7 +36,7 @@ struct Layer { color: vec4f, params: vec4f, fade: vec4f };
 @group(1) @binding(2) var<storage, read> ramp: array<vec4f>;
 @group(1) @binding(3) var<storage, read> points: array<f32>;
 @group(1) @binding(4) var<uniform> grid: vec4f;
-@group(1) @binding(5) var<storage, read> keys: array<vec2u>;
+@group(1) @binding(6) var words: texture_2d_array<u32>;
 @vertex fn vs_mesh(@location(0) solid: vec3f, @location(1) sphere: vec3f,
                    @location(2) item: u32) -> @builtin(position) vec4f {
   return vec4f(solid.xy * camera.a.x, 0.5, 1.0);
@@ -49,7 +49,7 @@ struct Layer { color: vec4f, params: vec4f, fade: vec4f };
   return vec4f(solid.xy * camera.a.x, 0.5, 1.0);
 }
 @fragment fn fs_grid() -> @location(0) vec4f {
-  return grid + 0.0 * values[0] * ramp[0] * f32(keys[0].x) * layer.color;
+  return grid + 0.0 * ramp[0] * f32(textureLoad(words, vec2u(0u, 0u), 0u, 0).x) * layer.color;
 }
 @vertex fn vs_line(@builtin(vertex_index) vi: u32, @location(0) start: u32) -> @builtin(position) vec4f {
   return vec4f(points[start] * camera.a.x, 0.0, 0.5, 1.0);

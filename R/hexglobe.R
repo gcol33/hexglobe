@@ -18,8 +18,13 @@
 #'     an ISEA grid, 3 polylines), \code{count} (indices of a mesh, segments
 #'     of a polyline), and its buffers as raw vectors: \code{uniform},
 #'     \code{pos}, \code{item}, \code{tri}, \code{index}, \code{values},
-#'     \code{ramp}, \code{grid}, \code{keys}, \code{points},
-#'     \code{segment}.}
+#'     \code{ramp}, \code{grid}, \code{points}, \code{segment}; and
+#'     \code{textures}, the textures bound beside them, each a list of
+#'     \code{binding}, \code{format} (\code{"r32uint"} or
+#'     \code{"rg32uint"}), \code{dimension} (\code{"2d"} or
+#'     \code{"2d-array"}), \code{size} (width, height and layers) and
+#'     \code{data}, its texels row by row and layer by layer as a raw
+#'     vector.}
 #' }
 #'
 #' @param scene A scene, as above.

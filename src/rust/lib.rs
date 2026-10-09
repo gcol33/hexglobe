@@ -37,10 +37,25 @@ impl HgBuf {
     }
 }
 
+/// A texture bound to a layer. `format`: 0 r32uint, 1 rg32uint;
+/// `dimension`: 0 2d, 1 2d-array. `data` holds its texels row by row and
+/// layer by layer.
+#[repr(C)]
+pub struct HgTexture {
+    pub binding: u32,
+    pub format: u32,
+    pub dimension: u32,
+    pub width: u32,
+    pub height: u32,
+    pub layers: u32,
+    pub data: HgBuf,
+}
+
 /// One layer of the globe. `kind`: 0 an opaque mesh (ocean, land), 1 a
 /// blended mesh coloured by value (H3 cells), 2 the ISEA grid found per
 /// pixel on the faces mesh, 3 polylines. `count` is the number of indices of
-/// a mesh or of segments of a polyline.
+/// a mesh or of segments of a polyline. The ISEA grid also binds its
+/// `textures`, the table of its cells.
 #[repr(C)]
 pub struct HgLayer {
     pub kind: u32,
@@ -53,9 +68,20 @@ pub struct HgLayer {
     pub values: HgBuf,
     pub ramp: HgBuf,
     pub grid: HgBuf,
-    pub keys: HgBuf,
     pub points: HgBuf,
     pub segment: HgBuf,
+    pub textures: *const HgTexture,
+    pub n_textures: usize,
+}
+
+impl HgLayer {
+    fn textures(&self) -> &[HgTexture] {
+        if self.textures.is_null() || self.n_textures == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(self.textures, self.n_textures) }
+        }
+    }
 }
 
 #[repr(C)]
@@ -348,6 +374,42 @@ fn upload(device: &wgpu::Device, data: &[u8], usage: wgpu::BufferUsages) -> wgpu
     buf
 }
 
+/// A texture holding `t`'s texels, and its view for binding.
+fn texture_view(device: &wgpu::Device, queue: &wgpu::Queue, t: &HgTexture) -> Result<wgpu::TextureView, String> {
+    let (format, texel) = match t.format {
+        0 => (wgpu::TextureFormat::R32Uint, 4u32),
+        1 => (wgpu::TextureFormat::Rg32Uint, 8u32),
+        f => return Err(format!("unknown texture format {}", f)),
+    };
+    let dimension = match t.dimension {
+        0 => wgpu::TextureViewDimension::D2,
+        1 => wgpu::TextureViewDimension::D2Array,
+        d => return Err(format!("unknown texture dimension {}", d)),
+    };
+    let size = wgpu::Extent3d { width: t.width, height: t.height, depth_or_array_layers: t.layers };
+    let bytes = t.data.bytes();
+    if bytes.len() as u64 != texel as u64 * t.width as u64 * t.height as u64 * t.layers as u64 {
+        return Err(format!("texture {} does not hold width x height x layers texels", t.binding));
+    }
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: None,
+        size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    queue.write_texture(
+        wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+        bytes,
+        wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(texel * t.width), rows_per_image: Some(t.height) },
+        size,
+    );
+    Ok(texture.create_view(&wgpu::TextureViewDescriptor { dimension: Some(dimension), ..Default::default() }))
+}
+
 /// Vertex and index buffers, made once per array and shared by the layers
 /// drawn on one mesh.
 struct Uploads<'a> {
@@ -434,19 +496,23 @@ fn render(scene: &HgScene, layers: &[HgLayer]) -> Result<Vec<u8>, String> {
             });
             Draw { pipeline: p, group, vertex: vec![segment], index: None, count: layer.count }
         } else {
-            let values = upload(&device, layer.values.bytes(), usage_storage);
             let ramp = upload(&device, layer.ramp.bytes(), usage_storage);
             let mut vertex = vec![uploads.get(&layer.pos, usage_vertex), uploads.get(&layer.item, usage_vertex)];
             let group = if p == 2 {
                 let grid = upload(&device, layer.grid.bytes(), usage_uniform);
-                let keys = upload(&device, layer.keys.bytes(), usage_storage);
+                let views = layer
+                    .textures()
+                    .iter()
+                    .map(|t| texture_view(&device, &queue, t).map(|v| (t.binding, v)))
+                    .collect::<Result<Vec<_>, String>>()?;
                 vertex.push(uploads.get(&layer.tri, usage_vertex));
-                device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: None,
-                    layout: &layout,
-                    entries: &[entry(0, &uniform), entry(1, &values), entry(2, &ramp), entry(4, &grid), entry(5, &keys)],
-                })
+                let mut entries = vec![entry(0, &uniform), entry(2, &ramp), entry(4, &grid)];
+                for (binding, view) in &views {
+                    entries.push(wgpu::BindGroupEntry { binding: *binding, resource: wgpu::BindingResource::TextureView(view) });
+                }
+                device.create_bind_group(&wgpu::BindGroupDescriptor { label: None, layout: &layout, entries: &entries })
             } else {
+                let values = upload(&device, layer.values.bytes(), usage_storage);
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: None,
                     layout: &layout,

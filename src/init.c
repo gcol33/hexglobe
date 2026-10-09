@@ -16,9 +16,19 @@ typedef struct {
 } HgBuf;
 
 typedef struct {
+  uint32_t binding;
+  uint32_t format;
+  uint32_t dimension;
+  uint32_t width, height, layers;
+  HgBuf data;
+} HgTexture;
+
+typedef struct {
   uint32_t kind;
   uint32_t count;
-  HgBuf uniform, pos, item, tri, index, values, ramp, grid, keys, points, segment;
+  HgBuf uniform, pos, item, tri, index, values, ramp, grid, points, segment;
+  const HgTexture *textures;
+  size_t n_textures;
 } HgLayer;
 
 typedef struct {
@@ -70,6 +80,52 @@ static uint32_t count(SEXP x, const char *what) {
   return (uint32_t) v;
 }
 
+// One of `options`, by name, as its position
+static uint32_t choice(SEXP x, const char *const *options, int n, const char *what) {
+  if (TYPEOF(x) != STRSXP || Rf_xlength(x) != 1) Rf_error("%s must be a single string", what);
+  const char *s = CHAR(STRING_ELT(x, 0));
+  for (int k = 0; k < n; k++) {
+    if (strcmp(s, options[k]) == 0) return (uint32_t) k;
+  }
+  Rf_error("%s '%s' is not one the renderer knows", what, s);
+  return 0;
+}
+
+static const char *const FORMATS[] = {"r32uint", "rg32uint"};
+static const char *const DIMENSIONS[] = {"2d", "2d-array"};
+
+// A layer's textures: each a list of binding, format, dimension, size
+// (width, height, layers) and data.
+static void textures(SEXP x, HgLayer *o) {
+  o->textures = NULL;
+  o->n_textures = 0;
+  if (Rf_isNull(x)) return;
+  if (TYPEOF(x) != VECSXP) Rf_error("a layer's textures must be a list");
+  R_xlen_t n = Rf_xlength(x);
+  HgTexture *ts = (HgTexture *) R_alloc(n > 0 ? (size_t) n : 1, sizeof(HgTexture));
+  for (R_xlen_t i = 0; i < n; i++) {
+    SEXP t = VECTOR_ELT(x, i);
+    if (TYPEOF(t) != VECSXP) Rf_error("every texture must be a list");
+    ts[i].binding = count(get(t, "binding"), "a texture's binding");
+    ts[i].format = choice(get(t, "format"), FORMATS, 2, "a texture's format");
+    ts[i].dimension = choice(get(t, "dimension"), DIMENSIONS, 2, "a texture's dimension");
+    SEXP size = get(t, "size");
+    if (!Rf_isNumeric(size) || Rf_xlength(size) != 3) Rf_error("a texture's size must be three numbers");
+    SEXP sz = PROTECT(Rf_coerceVector(size, REALSXP));
+    double *d = REAL(sz);
+    for (int k = 0; k < 3; k++) {
+      if (!(d[k] >= 1 && d[k] <= 4294967295.0)) Rf_error("a texture's size is out of range");
+    }
+    ts[i].width = (uint32_t) d[0];
+    ts[i].height = (uint32_t) d[1];
+    ts[i].layers = (uint32_t) d[2];
+    UNPROTECT(1);
+    ts[i].data = buf(get(t, "data"), "a texture's data");
+  }
+  o->textures = ts;
+  o->n_textures = (size_t) n;
+}
+
 // The result's bytes as a list (bytes, width, height), or R's error with
 // the renderer's message.
 static SEXP take(int status, HgResult *res) {
@@ -119,7 +175,7 @@ static SEXP C_render(SEXP scene) {
     o->values = buf(get(l, "values"), "a layer's values");
     o->ramp = buf(get(l, "ramp"), "a layer's ramp");
     o->grid = buf(get(l, "grid"), "a layer's grid");
-    o->keys = buf(get(l, "keys"), "a layer's keys");
+    textures(get(l, "textures"), o);
     o->points = buf(get(l, "points"), "a layer's points");
     o->segment = buf(get(l, "segment"), "a layer's segment");
   }
