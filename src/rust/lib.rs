@@ -281,10 +281,12 @@ fn gpu_new() -> Result<Gpu, String> {
     Ok(Gpu { device, queue, info: adapter.get_info(), pipelines: None })
 }
 
-fn mesh_vertex_attrs() -> [wgpu::VertexAttribute; 2] {
+/// A mesh vertex: its place on the solid and on the sphere, and its face.
+fn mesh_vertex_attrs() -> [wgpu::VertexAttribute; 3] {
     [
         wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 0, shader_location: 0 },
         wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 12, shader_location: 1 },
+        wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32, offset: 24, shader_location: 4 },
     ]
 }
 
@@ -309,7 +311,7 @@ fn build_pipelines(device: &wgpu::Device, code: &str) -> [wgpu::RenderPipeline; 
     let item_attrs = [wgpu::VertexAttribute { format: wgpu::VertexFormat::Uint32, offset: 0, shader_location: 2 }];
     let tri_attrs = [wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x2, offset: 0, shader_location: 3 }];
     let seg_attrs = [wgpu::VertexAttribute { format: wgpu::VertexFormat::Uint32, offset: 0, shader_location: 0 }];
-    let pos = wgpu::VertexBufferLayout { array_stride: 24, step_mode: wgpu::VertexStepMode::Vertex, attributes: &pos_attrs };
+    let pos = wgpu::VertexBufferLayout { array_stride: 28, step_mode: wgpu::VertexStepMode::Vertex, attributes: &pos_attrs };
     let item = wgpu::VertexBufferLayout { array_stride: 4, step_mode: wgpu::VertexStepMode::Vertex, attributes: &item_attrs };
     let tri = wgpu::VertexBufferLayout { array_stride: 8, step_mode: wgpu::VertexStepMode::Vertex, attributes: &tri_attrs };
     let seg = wgpu::VertexBufferLayout { array_stride: 4, step_mode: wgpu::VertexStepMode::Instance, attributes: &seg_attrs };
@@ -430,8 +432,8 @@ fn render(scene: &HgScene, layers: &[HgLayer]) -> Result<Vec<u8>, String> {
     if w == 0 || h == 0 {
         return Err("the image needs a positive width and height".to_string());
     }
-    if scene.camera.len != 112 {
-        return Err("the camera uniform is 28 floats".to_string());
+    if scene.camera.len != 448 {
+        return Err("the camera uniform is 112 floats".to_string());
     }
     let mut slot = GPU.lock().map_err(|_| "the renderer's lock is poisoned".to_string())?;
     let gpu = gpu_get(&mut slot)?;

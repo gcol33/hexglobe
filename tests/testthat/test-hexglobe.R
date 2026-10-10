@@ -62,15 +62,15 @@ struct Layer { color: vec4f, params: vec4f, fade: vec4f };
 test_that("a scene is drawn at its size, straight alpha, rows from the top", {
   skip_without_adapter()
   # One triangle over the top half of the image, half transparent orange.
-  pos <- f32(c(-1, 0, 0, 0, 0, 0,
-                3, 0, 0, 0, 0, 0,
-               -1, 4, 0, 0, 0, 0))
+  pos <- f32(c(-1, 0, 0, 0, 0, 0, 0,
+                3, 0, 0, 0, 0, 0, 0,
+               -1, 4, 0, 0, 0, 0, 0))
   layer <- list(kind = 1L, count = 3L,
                 uniform = f32(c(1, 0.5, 0, 0.5, rep(0, 8))),
                 pos = pos, item = writeBin(integer(3), raw(), size = 4L),
                 index = writeBin(0:2, raw(), size = 4L),
                 values = f32(0), ramp = f32(numeric(4)))
-  scene <- list(shader = shader, camera = f32(c(1, rep(0, 27))),
+  scene <- list(shader = shader, camera = f32(c(1, rep(0, 111))),
                 width = 8L, height = 6L, layers = list(layer))
   img <- render_scene(scene)
   expect_equal(c(img$width, img$height), c(8L, 6L))
@@ -85,8 +85,8 @@ test_that("a malformed scene is refused with the renderer's reason", {
   skip_without_adapter()
   scene <- list(shader = shader, camera = f32(1:4), width = 4L, height = 4L,
                 layers = list())
-  expect_error(render_scene(scene), "28 floats")
-  scene$camera <- f32(numeric(28))
+  expect_error(render_scene(scene), "112 floats")
+  scene$camera <- f32(numeric(112))
   scene$layers <- list(list(kind = 9L, count = 0L))
   expect_error(render_scene(scene), "kind 9")
   scene$layers <- list()

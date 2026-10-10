@@ -11,7 +11,7 @@
 #' A scene is a list of
 #' \describe{
 #'   \item{shader}{the WGSL source, one string;}
-#'   \item{camera}{the camera uniform, 28 32-bit floats as a raw vector;}
+#'   \item{camera}{the camera uniform, 112 32-bit floats as a raw vector;}
 #'   \item{width, height}{the image size in pixels;}
 #'   \item{layers}{the layers in drawing order, each a list with \code{kind}
 #'     (0 an opaque mesh, 1 a blended mesh coloured by value, 2 the cells of
