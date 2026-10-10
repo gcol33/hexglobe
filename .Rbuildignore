@@ -1,3 +1,4 @@
 ^src/rust/target$
 ^\.git$
 ^README\.md$
+^\.github$
