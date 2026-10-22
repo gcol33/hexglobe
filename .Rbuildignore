@@ -2,3 +2,7 @@
 ^\.git$
 ^README\.md$
 ^\.github$
+^README\.Rmd$
+^\.run.*$
+^sidecars$
+^man/figures/README-.*$

@@ -6,3 +6,4 @@ src/rust/target/
 .RData
 hexglobe.Rcheck/
 hexglobe_*.tar.gz
+.run*
